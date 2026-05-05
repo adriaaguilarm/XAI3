@@ -1,11 +1,9 @@
 library(dplyr)
 library(ggplot2)
-library(patchwork)
 library(ranger)
 library(readr)
 library(scales)
 library(tidyr)
-library(viridis)
 
 set.seed(20260505)
 
@@ -20,7 +18,7 @@ predict_ranger <- function(model, newdata) {
   predict(model, data = as.data.frame(newdata))$predictions
 }
 
-grid_values <- function(x, n = 50, discrete_limit = 15) {
+grid_values <- function(x, n = 50, discrete_limit = 30) {
   x <- x[!is.na(x)]
   lower <- as.numeric(quantile(x, 0.01, names = FALSE))
   upper <- as.numeric(quantile(x, 0.99, names = FALSE))
@@ -124,12 +122,64 @@ theme_xai <- function() {
     )
 }
 
+theme_reference <- function() {
+  theme_minimal(base_size = 11) +
+    theme(
+      plot.title = element_text(face = "bold", size = 13),
+      plot.subtitle = element_text(size = 9),
+      panel.grid.minor = element_blank(),
+      legend.position = "right"
+    )
+}
+
+save_reference_plot <- function(plot, filename, width = 9, height = 5.5) {
+  ggsave(
+    file.path("outputs/figures", filename),
+    plot,
+    width = width,
+    height = height,
+    dpi = 300,
+    bg = "white"
+  )
+}
+
+plot_pdp_1d_reference <- function(
+    pdp_data,
+    sample_data,
+    feature_name,
+    title,
+    x_label,
+    y_label,
+    y_scale = label_comma(),
+    line_color = "#1f4e79") {
+  ggplot(filter(pdp_data, feature == feature_name), aes(value, prediction)) +
+    geom_line(color = line_color, linewidth = 1) +
+    geom_rug(
+      data = sample_data,
+      aes(x = .data[[feature_name]]),
+      inherit.aes = FALSE,
+      sides = "b",
+      alpha = 0.24,
+      color = "#7a6651"
+    ) +
+    scale_y_continuous(labels = y_scale) +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label
+    ) +
+    theme_reference()
+}
+
 # Exercise 1 and 2: bike rentals --------------------------------------------
 
 bike <- read_csv("day.csv", show_col_types = FALSE) %>%
   mutate(
     dteday = as.Date(dteday),
     days_since_2011 = as.integer(dteday - as.Date("2011-01-01")) + 1,
+    temp_c = temp * 41,
+    hum_pct = hum * 100,
+    windspeed_scaled = windspeed * 67,
     season = factor(season),
     holiday = factor(holiday),
     weekday = factor(weekday),
@@ -144,9 +194,9 @@ bike_features <- c(
   "weekday",
   "workingday",
   "weathersit",
-  "temp",
-  "hum",
-  "windspeed"
+  "temp_c",
+  "hum_pct",
+  "windspeed_scaled"
 )
 
 bike_train <- bike %>%
@@ -166,7 +216,7 @@ bike_model <- ranger(
 bike_pdp_sample <- bike_train %>%
   sample_pdp_rows()
 
-bike_pdp_features <- c("days_since_2011", "temp", "hum", "windspeed")
+bike_pdp_features <- c("days_since_2011", "temp_c", "hum_pct", "windspeed_scaled")
 bike_pdp_1d <- bind_rows(lapply(bike_pdp_features, function(feature) {
   pdp_1d(
     bike_model,
@@ -182,9 +232,9 @@ bike_distribution <- bike_pdp_sample %>%
 
 bike_feature_labels <- c(
   days_since_2011 = "Days since 2011",
-  temp = "Temperature",
-  hum = "Humidity",
-  windspeed = "Wind speed"
+  temp_c = "Temperature",
+  hum_pct = "Humidity",
+  windspeed_scaled = "Wind speed"
 )
 
 bike_pdp_plot <- ggplot(bike_pdp_1d, aes(value, prediction)) +
@@ -210,6 +260,54 @@ bike_pdp_plot <- ggplot(bike_pdp_1d, aes(value, prediction)) +
   ) +
   theme_xai()
 
+save_reference_plot(
+  plot_pdp_1d_reference(
+    bike_pdp_1d,
+    bike_pdp_sample,
+    "days_since_2011",
+    "Partial Dependence of Bike Rentals on Days Since 2011",
+    "Days since 2011-01-01",
+    "Predicted Bike count"
+  ),
+  "bike_pdp_days_since_2011.png"
+)
+
+save_reference_plot(
+  plot_pdp_1d_reference(
+    bike_pdp_1d,
+    bike_pdp_sample,
+    "temp_c",
+    "Partial Dependence of Bike Rentals on Temperature",
+    "Temperature (°C)",
+    "Predicted Bike count"
+  ),
+  "bike_pdp_temperature.png"
+)
+
+save_reference_plot(
+  plot_pdp_1d_reference(
+    bike_pdp_1d,
+    bike_pdp_sample,
+    "hum_pct",
+    "Partial Dependence of Bike Rentals on Humidity",
+    "Humidity (%)",
+    "Predicted Bike count"
+  ),
+  "bike_pdp_humidity.png"
+)
+
+save_reference_plot(
+  plot_pdp_1d_reference(
+    bike_pdp_1d,
+    bike_pdp_sample,
+    "windspeed_scaled",
+    "Partial Dependence of Bike Rentals on Wind Speed",
+    "Wind speed",
+    "Predicted Bike count"
+  ),
+  "bike_pdp_windspeed.png"
+)
+
 ggsave(
   "outputs/figures/bike_pdp_1d.png",
   bike_pdp_plot,
@@ -218,25 +316,25 @@ ggsave(
   dpi = 300
 )
 
-temp_grid <- grid_values(bike_train$temp, n = 45)
-hum_grid <- grid_values(bike_train$hum, n = 45)
+temp_grid <- grid_values(bike_train$temp_c, n = 15)
+hum_grid <- grid_values(bike_train$hum_pct, n = 15)
 tile_width <- diff(range(temp_grid)) / (length(temp_grid) - 1) * 1.03
 tile_height <- diff(range(hum_grid)) / (length(hum_grid) - 1) * 1.03
 
 bike_pdp_2d <- pdp_2d(
   bike_model,
   bike_pdp_sample %>% select(all_of(bike_features)),
-  "temp",
-  "hum",
+  "temp_c",
+  "hum_pct",
   temp_grid,
   hum_grid
 )
 
-bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp, hum, fill = prediction)) +
+bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp_c, hum_pct, fill = prediction)) +
   geom_tile(width = tile_width, height = tile_height) +
   geom_rug(
     data = bike_pdp_sample,
-    aes(temp, hum),
+    aes(temp_c, hum_pct),
     inherit.aes = FALSE,
     sides = "bl",
     outside = TRUE,
@@ -246,30 +344,36 @@ bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp, hum, fill = prediction)) +
     color = "#111111"
   ) +
   scale_fill_gradientn(
-    colours = c("#071a2f", "#0f3659", "#226da5", "#3fa7f5"),
+    colours = c("#4f3a2b", "#5d526b", "#638ce5", "#74a9ff"),
     labels = comma
   ) +
   scale_x_continuous(expand = expansion(mult = 0), breaks = pretty_breaks(5)) +
   scale_y_continuous(expand = expansion(mult = 0), breaks = pretty_breaks(5)) +
   coord_cartesian(clip = "off") +
   labs(
-    title = "Bike rentals: two-dimensional partial dependence",
-    subtitle = "Temperature and humidity PDP with 50 sampled observations on the margins",
-    x = "Temperature",
-    y = "Humidity",
+    title = "2D Partial Dependence Plot: Temperature and Humidity",
+    subtitle = "Random sample of 50 observations; heatmap style following the class slides",
+    x = "Temperature (°C)",
+    y = "Humidity (%)",
     fill = expression(hat(y))
   ) +
-  theme_bw(base_size = 11) +
+  theme_minimal(base_size = 11) +
   theme(
     plot.title = element_text(face = "bold", size = 13),
-    plot.subtitle = element_text(size = 10),
-    panel.grid.major = element_line(color = "#d9d9d9", linewidth = 0.35),
+    plot.subtitle = element_text(size = 9),
+    panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    panel.border = element_rect(color = "#9a9a9a", fill = NA, linewidth = 0.6),
     legend.key.height = grid::unit(1.05, "cm"),
     legend.key.width = grid::unit(0.45, "cm"),
     plot.margin = margin(8, 24, 24, 24)
   )
+
+save_reference_plot(
+  bike_pdp_2d_plot,
+  "bike_pdp_2d_temperature_humidity_heatmap.png",
+  width = 9,
+  height = 6.5
+)
 
 ggsave(
   "outputs/figures/bike_pdp_temp_hum_2d.png",
@@ -294,7 +398,8 @@ house_features <- c(
 
 house_model_data <- houses %>%
   select(price, all_of(house_features)) %>%
-  drop_na()
+  drop_na() %>%
+  filter(bedrooms <= 8)
 
 house_train <- house_model_data %>%
   slice_sample(n = house_sample_size)
@@ -353,6 +458,58 @@ house_pdp_plot <- ggplot(house_pdp_1d, aes(value, prediction)) +
     y = "Predicted price"
   ) +
   theme_xai()
+
+save_reference_plot(
+  plot_pdp_1d_reference(
+    house_pdp_1d,
+    house_train,
+    "bedrooms",
+    "Partial Dependence of House Price on Bedrooms",
+    "Bedrooms",
+    "Predicted House price",
+    y_scale = label_dollar()
+  ),
+  "house_pdp_bedrooms.png"
+)
+
+save_reference_plot(
+  plot_pdp_1d_reference(
+    house_pdp_1d,
+    house_train,
+    "bathrooms",
+    "Partial Dependence of House Price on Bathrooms",
+    "Bathrooms",
+    "Predicted House price",
+    y_scale = label_dollar()
+  ),
+  "house_pdp_bathrooms.png"
+)
+
+save_reference_plot(
+  plot_pdp_1d_reference(
+    house_pdp_1d,
+    house_train,
+    "sqft_living",
+    "Partial Dependence of House Price on Living Area",
+    "Living area (sqft)",
+    "Predicted House price",
+    y_scale = label_dollar()
+  ),
+  "house_pdp_sqft_living.png"
+)
+
+save_reference_plot(
+  plot_pdp_1d_reference(
+    house_pdp_1d,
+    house_train,
+    "floors",
+    "Partial Dependence of House Price on Number of Floors",
+    "Floors",
+    "Predicted House price",
+    y_scale = label_dollar()
+  ),
+  "house_pdp_floors.png"
+)
 
 ggsave(
   "outputs/figures/house_pdp_1d.png",
