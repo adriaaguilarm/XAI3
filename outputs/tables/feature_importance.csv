@@ -1,0 +1,16 @@
+dataset,feature,importance
+Bike rentals,days_since_2011,2759613.3231578525
+Bike rentals,temp,1691403.7145762409
+Bike rentals,season,488610.6812558285
+Bike rentals,hum,317491.01616625284
+Bike rentals,weathersit,212477.9564783157
+Bike rentals,windspeed,100421.1214946943
+Bike rentals,weekday,36626.005792045646
+Bike rentals,workingday,24310.940968946525
+Bike rentals,holiday,2296.146437821211
+House prices,sqft_living,174336832494.5816
+House prices,yr_built,32196164411.864727
+House prices,bathrooms,28988661491.64176
+House prices,sqft_lot,13654439752.899075
+House prices,floors,8307036798.741861
+House prices,bedrooms,3670593383.08856
