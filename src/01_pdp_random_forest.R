@@ -9,6 +9,9 @@ library(viridis)
 
 set.seed(20260505)
 
+pdp_sample_size <- 50
+house_sample_size <- 1500
+
 dir.create("outputs", showWarnings = FALSE)
 dir.create("outputs/figures", recursive = TRUE, showWarnings = FALSE)
 dir.create("outputs/tables", recursive = TRUE, showWarnings = FALSE)
@@ -102,6 +105,14 @@ importance_table <- function(model, dataset_name) {
     arrange(dataset, desc(importance))
 }
 
+sample_pdp_rows <- function(data, n = pdp_sample_size) {
+  if (nrow(data) < n) {
+    stop("The PDP sample must contain exactly ", n, " rows.")
+  }
+
+  slice_sample(data, n = n)
+}
+
 theme_xai <- function() {
   theme_minimal(base_size = 11) +
     theme(
@@ -152,23 +163,20 @@ bike_model <- ranger(
   respect.unordered.factors = "order"
 )
 
-bike_pdp_sample_1d <- bike_train %>%
-  slice_sample(n = min(200, nrow(.)))
-
-bike_pdp_sample_2d <- bike_train %>%
-  slice_sample(n = min(50, nrow(.)))
+bike_pdp_sample <- bike_train %>%
+  sample_pdp_rows()
 
 bike_pdp_features <- c("days_since_2011", "temp", "hum", "windspeed")
 bike_pdp_1d <- bind_rows(lapply(bike_pdp_features, function(feature) {
   pdp_1d(
     bike_model,
-    bike_pdp_sample_1d %>% select(all_of(bike_features)),
+    bike_pdp_sample %>% select(all_of(bike_features)),
     feature,
     grid_values(bike_train[[feature]], n = 60)
   )
 }))
 
-bike_distribution <- bike_pdp_sample_1d %>%
+bike_distribution <- bike_pdp_sample %>%
   select(all_of(bike_pdp_features)) %>%
   pivot_longer(everything(), names_to = "feature", values_to = "value")
 
@@ -196,7 +204,7 @@ bike_pdp_plot <- ggplot(bike_pdp_1d, aes(value, prediction)) +
   scale_y_continuous(labels = comma) +
   labs(
     title = "Bike rentals: one-dimensional partial dependence",
-    subtitle = "Random forest trained on all daily records; PDP averaged on a 200-day sample",
+    subtitle = "Random forest trained on all daily records; PDP averaged on a 50-day sample",
     x = NULL,
     y = "Predicted bike count"
   ) +
@@ -217,7 +225,7 @@ tile_height <- diff(range(hum_grid)) / (length(hum_grid) - 1) * 1.03
 
 bike_pdp_2d <- pdp_2d(
   bike_model,
-  bike_pdp_sample_2d %>% select(all_of(bike_features)),
+  bike_pdp_sample %>% select(all_of(bike_features)),
   "temp",
   "hum",
   temp_grid,
@@ -227,7 +235,7 @@ bike_pdp_2d <- pdp_2d(
 bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp, hum, fill = prediction)) +
   geom_tile(width = tile_width, height = tile_height) +
   geom_rug(
-    data = bike_pdp_sample_2d,
+    data = bike_pdp_sample,
     aes(temp, hum),
     inherit.aes = FALSE,
     sides = "bl",
@@ -289,7 +297,7 @@ house_model_data <- houses %>%
   drop_na()
 
 house_train <- house_model_data %>%
-  slice_sample(n = min(1500, nrow(.)))
+  slice_sample(n = house_sample_size)
 
 house_model <- ranger(
   price ~ .,
@@ -362,7 +370,7 @@ metrics <- bind_rows(
     "Bike rentals",
     "cnt",
     nrow(bike_train),
-    nrow(bike_pdp_sample_1d)
+    nrow(bike_pdp_sample)
   ),
   model_metrics(
     house_model,
