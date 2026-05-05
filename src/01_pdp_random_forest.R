@@ -223,31 +223,42 @@ bike_pdp_2d <- pdp_2d(
 
 bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp, hum, fill = prediction)) +
   geom_tile(width = tile_width, height = tile_height) +
-  stat_density_2d(
+  geom_rug(
     data = bike_pdp_sample,
     aes(temp, hum),
     inherit.aes = FALSE,
-    color = "white",
-    linewidth = 0.35,
-    alpha = 0.8
+    sides = "bl",
+    outside = TRUE,
+    length = grid::unit(0.045, "npc"),
+    linewidth = 0.25,
+    alpha = 0.42,
+    color = "#111111"
   ) +
-  geom_point(
-    data = bike_pdp_sample,
-    aes(temp, hum),
-    inherit.aes = FALSE,
-    size = 0.8,
-    alpha = 0.22,
-    color = "black"
+  scale_fill_gradientn(
+    colours = c("#071a2f", "#0f3659", "#226da5", "#3fa7f5"),
+    labels = comma
   ) +
-  scale_fill_viridis_c(option = "C", labels = comma) +
+  scale_x_continuous(expand = expansion(mult = 0), breaks = pretty_breaks(5)) +
+  scale_y_continuous(expand = expansion(mult = 0), breaks = pretty_breaks(5)) +
+  coord_cartesian(clip = "off") +
   labs(
     title = "Bike rentals: two-dimensional partial dependence",
-    subtitle = "Temperature and humidity PDP with sampled input density overlaid",
+    subtitle = "Temperature and humidity PDP with sampled feature distributions on the margins",
     x = "Temperature",
     y = "Humidity",
-    fill = "Predicted count"
+    fill = expression(hat(y))
   ) +
-  theme_xai()
+  theme_bw(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    plot.subtitle = element_text(size = 10),
+    panel.grid.major = element_line(color = "#d9d9d9", linewidth = 0.35),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(color = "#9a9a9a", fill = NA, linewidth = 0.6),
+    legend.key.height = grid::unit(1.05, "cm"),
+    legend.key.width = grid::unit(0.45, "cm"),
+    plot.margin = margin(8, 24, 24, 24)
+  )
 
 ggsave(
   "outputs/figures/bike_pdp_temp_hum_2d.png",
@@ -377,4 +388,3 @@ write_csv(bike_pdp_2d, "outputs/tables/bike_pdp_temp_hum_2d.csv")
 write_csv(house_pdp_1d, "outputs/tables/house_pdp_1d.csv")
 
 message("Analysis completed. Figures and tables written to outputs/.")
-
