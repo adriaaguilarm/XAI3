@@ -30,7 +30,7 @@ Generated figures are written to `outputs/figures/` and tabular summaries to `ou
 
 ## Notes
 
-- The bike rental model is trained with all daily records and PDP values are computed on a random sample of 200 observations.
+- The bike rental model is trained with all daily records. One-dimensional PDP values use a random sample of 200 observations, while the two-dimensional temperature-humidity PDP uses exactly 50 sampled observations.
 - The house price model is trained and explained on a random sample of 1,500 observations, following the class indication to use 1,000-2,000 records for this part.
 - The two-dimensional PDP uses `geom_tile()` and shows sampled feature distributions as marginal rugs, matching the class-slide style.
 - Development was done on the branch `analysis/pdp-random-forest` and then integrated into `main`.
