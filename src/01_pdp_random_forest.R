@@ -177,9 +177,6 @@ bike <- read_csv("day.csv", show_col_types = FALSE) %>%
   mutate(
     dteday = as.Date(dteday),
     days_since_2011 = as.integer(dteday - as.Date("2011-01-01")) + 1,
-    temp_c = temp * 41,
-    hum_pct = hum * 100,
-    windspeed_scaled = windspeed * 67,
     season = factor(season),
     holiday = factor(holiday),
     weekday = factor(weekday),
@@ -194,9 +191,9 @@ bike_features <- c(
   "weekday",
   "workingday",
   "weathersit",
-  "temp_c",
-  "hum_pct",
-  "windspeed_scaled"
+  "temp",
+  "hum",
+  "windspeed"
 )
 
 bike_train <- bike %>%
@@ -216,7 +213,7 @@ bike_model <- ranger(
 bike_pdp_sample <- bike_train %>%
   sample_pdp_rows()
 
-bike_pdp_features <- c("days_since_2011", "temp_c", "hum_pct", "windspeed_scaled")
+bike_pdp_features <- c("days_since_2011", "temp", "hum", "windspeed")
 bike_pdp_1d <- bind_rows(lapply(bike_pdp_features, function(feature) {
   pdp_1d(
     bike_model,
@@ -232,9 +229,9 @@ bike_distribution <- bike_pdp_sample %>%
 
 bike_feature_labels <- c(
   days_since_2011 = "Days since 2011",
-  temp_c = "Temperature",
-  hum_pct = "Humidity",
-  windspeed_scaled = "Wind speed"
+  temp = "Temperature",
+  hum = "Humidity",
+  windspeed = "Wind speed"
 )
 
 bike_pdp_plot <- ggplot(bike_pdp_1d, aes(value, prediction)) +
@@ -276,9 +273,9 @@ save_reference_plot(
   plot_pdp_1d_reference(
     bike_pdp_1d,
     bike_pdp_sample,
-    "temp_c",
+    "temp",
     "Partial Dependence of Bike Rentals on Temperature",
-    "Temperature (°C)",
+    "Temperature (normalized)",
     "Predicted Bike count"
   ),
   "bike_pdp_temperature.png"
@@ -288,9 +285,9 @@ save_reference_plot(
   plot_pdp_1d_reference(
     bike_pdp_1d,
     bike_pdp_sample,
-    "hum_pct",
+    "hum",
     "Partial Dependence of Bike Rentals on Humidity",
-    "Humidity (%)",
+    "Humidity (normalized)",
     "Predicted Bike count"
   ),
   "bike_pdp_humidity.png"
@@ -300,9 +297,9 @@ save_reference_plot(
   plot_pdp_1d_reference(
     bike_pdp_1d,
     bike_pdp_sample,
-    "windspeed_scaled",
+    "windspeed",
     "Partial Dependence of Bike Rentals on Wind Speed",
-    "Wind speed",
+    "Wind speed (normalized)",
     "Predicted Bike count"
   ),
   "bike_pdp_windspeed.png"
@@ -316,25 +313,25 @@ ggsave(
   dpi = 300
 )
 
-temp_grid <- grid_values(bike_train$temp_c, n = 15)
-hum_grid <- grid_values(bike_train$hum_pct, n = 15)
+temp_grid <- grid_values(bike_train$temp, n = 15)
+hum_grid <- grid_values(bike_train$hum, n = 15)
 tile_width <- diff(range(temp_grid)) / (length(temp_grid) - 1) * 1.03
 tile_height <- diff(range(hum_grid)) / (length(hum_grid) - 1) * 1.03
 
 bike_pdp_2d <- pdp_2d(
   bike_model,
   bike_pdp_sample %>% select(all_of(bike_features)),
-  "temp_c",
-  "hum_pct",
+  "temp",
+  "hum",
   temp_grid,
   hum_grid
 )
 
-bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp_c, hum_pct, fill = prediction)) +
+bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp, hum, fill = prediction)) +
   geom_tile(width = tile_width, height = tile_height) +
   geom_rug(
     data = bike_pdp_sample,
-    aes(temp_c, hum_pct),
+    aes(temp, hum),
     inherit.aes = FALSE,
     sides = "bl",
     outside = TRUE,
@@ -353,8 +350,8 @@ bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp_c, hum_pct, fill = prediction))
   labs(
     title = "2D Partial Dependence Plot: Temperature and Humidity",
     subtitle = "Random sample of 50 observations; heatmap style following the class slides",
-    x = "Temperature (°C)",
-    y = "Humidity (%)",
+    x = "Temperature (normalized)",
+    y = "Humidity (normalized)",
     fill = expression(hat(y))
   ) +
   theme_minimal(base_size = 11) +
