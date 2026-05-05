@@ -11,9 +11,26 @@ The report is intentionally kept outside git until it is reviewed in Overleaf.
 
 ## Reproduce
 
+Required R packages:
+
+- `dplyr`
+- `ggplot2`
+- `patchwork`
+- `ranger`
+- `readr`
+- `scales`
+- `tidyr`
+- `viridis`
+
 ```bash
 Rscript src/01_pdp_random_forest.R
 ```
 
 Generated figures are written to `outputs/figures/` and tabular summaries to `outputs/tables/`.
 
+## Notes
+
+- The bike rental model is trained with all daily records and PDP values are computed on a random sample of 200 observations.
+- The house price model is trained and explained on a random sample of 1,500 observations, following the class indication to use 1,000-2,000 records for this part.
+- The two-dimensional PDP uses `geom_tile()` and overlays the sampled input density for temperature and humidity.
+- Development was done on the branch `analysis/pdp-random-forest` and then integrated into `main`.
