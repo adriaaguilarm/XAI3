@@ -1,0 +1,18 @@
+.DS_Store
+
+# Course statements and slides are local context, not repository artefacts.
+*.pdf
+Tema_4/
+Tema_5/
+tasks/
+
+# The final report is reviewed locally/Overleaf before it is uploaded later.
+report/
+
+# Generated runtime/cache files.
+.Rhistory
+.RData
+.Rproj.user/
+__pycache__/
+.ipynb_checkpoints/
+
