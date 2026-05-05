@@ -152,20 +152,23 @@ bike_model <- ranger(
   respect.unordered.factors = "order"
 )
 
-bike_pdp_sample <- bike_train %>%
+bike_pdp_sample_1d <- bike_train %>%
   slice_sample(n = min(200, nrow(.)))
+
+bike_pdp_sample_2d <- bike_train %>%
+  slice_sample(n = min(50, nrow(.)))
 
 bike_pdp_features <- c("days_since_2011", "temp", "hum", "windspeed")
 bike_pdp_1d <- bind_rows(lapply(bike_pdp_features, function(feature) {
   pdp_1d(
     bike_model,
-    bike_pdp_sample %>% select(all_of(bike_features)),
+    bike_pdp_sample_1d %>% select(all_of(bike_features)),
     feature,
     grid_values(bike_train[[feature]], n = 60)
   )
 }))
 
-bike_distribution <- bike_pdp_sample %>%
+bike_distribution <- bike_pdp_sample_1d %>%
   select(all_of(bike_pdp_features)) %>%
   pivot_longer(everything(), names_to = "feature", values_to = "value")
 
@@ -187,7 +190,7 @@ bike_pdp_plot <- ggplot(bike_pdp_1d, aes(value, prediction)) +
   ) +
   facet_wrap(
     ~feature,
-    scales = "free_x",
+    scales = "free",
     labeller = as_labeller(bike_feature_labels)
   ) +
   scale_y_continuous(labels = comma) +
@@ -214,7 +217,7 @@ tile_height <- diff(range(hum_grid)) / (length(hum_grid) - 1) * 1.03
 
 bike_pdp_2d <- pdp_2d(
   bike_model,
-  bike_pdp_sample %>% select(all_of(bike_features)),
+  bike_pdp_sample_2d %>% select(all_of(bike_features)),
   "temp",
   "hum",
   temp_grid,
@@ -224,7 +227,7 @@ bike_pdp_2d <- pdp_2d(
 bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp, hum, fill = prediction)) +
   geom_tile(width = tile_width, height = tile_height) +
   geom_rug(
-    data = bike_pdp_sample,
+    data = bike_pdp_sample_2d,
     aes(temp, hum),
     inherit.aes = FALSE,
     sides = "bl",
@@ -243,7 +246,7 @@ bike_pdp_2d_plot <- ggplot(bike_pdp_2d, aes(temp, hum, fill = prediction)) +
   coord_cartesian(clip = "off") +
   labs(
     title = "Bike rentals: two-dimensional partial dependence",
-    subtitle = "Temperature and humidity PDP with sampled feature distributions on the margins",
+    subtitle = "Temperature and humidity PDP with 50 sampled observations on the margins",
     x = "Temperature",
     y = "Humidity",
     fill = expression(hat(y))
@@ -331,7 +334,7 @@ house_pdp_plot <- ggplot(house_pdp_1d, aes(value, prediction)) +
   ) +
   facet_wrap(
     ~feature,
-    scales = "free_x",
+    scales = "free",
     labeller = as_labeller(house_feature_labels)
   ) +
   scale_y_continuous(labels = dollar) +
@@ -359,7 +362,7 @@ metrics <- bind_rows(
     "Bike rentals",
     "cnt",
     nrow(bike_train),
-    nrow(bike_pdp_sample)
+    nrow(bike_pdp_sample_1d)
   ),
   model_metrics(
     house_model,
