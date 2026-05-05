@@ -15,12 +15,10 @@ Required R packages:
 
 - `dplyr`
 - `ggplot2`
-- `patchwork`
 - `ranger`
 - `readr`
 - `scales`
 - `tidyr`
-- `viridis`
 
 ```bash
 Rscript src/01_pdp_random_forest.R
@@ -32,5 +30,7 @@ Generated figures are written to `outputs/figures/` and tabular summaries to `ou
 
 - The bike rental model is trained with all daily records and its PDP values are computed on exactly 50 sampled observations.
 - The house price model is trained and explained on a random sample of 1,500 observations, following the class indication to use 1,000-2,000 records for this part.
+- Bike weather features are plotted in interpretable units: temperature in Celsius, humidity in percent, and scaled wind speed.
+- The generated PDP figures are saved individually and use marginal rugs, matching the reference figure style.
 - The two-dimensional PDP uses `geom_tile()` and shows sampled feature distributions as marginal rugs, matching the class-slide style.
 - Development was done on the branch `analysis/pdp-random-forest` and then integrated into `main`.
